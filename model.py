@@ -27,23 +27,17 @@ def construct_loaders(features_path, labels_path, batch_size=2, shuffle=True, ra
     size = len(features[voters[0]])
 
     features_list = np.zeros((size, len(voters) * 3), dtype=np.float)
-    for i in range(size):
-        features_list[i, :3] = features[voters[0]][i]
-        features_list[i, 3:6] = features[voters[1]][i]
-        features_list[i, 6:9] = features[voters[2]][i]
+    for fi in range(size):
+        for vi in range(len(voters)):
+            features_list[fi, vi * 3:vi * 3 + 3] = features[voters[vi]][fi]
+    dataset_list = list(zip(features_list, labels))
 
     train_size = int(ratios[0] * len(features_list))
     valid_size = int(ratios[1] * len(features_list))
-    test_size = int((1 - ratios[1] - ratios[0]) * len(features_list))
-    train_end = train_size
-    valid_end = valid_size + train_end
-    test_end = valid_end + test_size
 
-    features_list = list(zip(features_list, labels))
-
-    train_dataset = ListDataset(features_list[:train_end])
-    valid_dataset = ListDataset(features_list[train_end:valid_end])
-    test_dataset = ListDataset(features_list[test_end:])
+    train_dataset = ListDataset(dataset_list[:train_size])
+    valid_dataset = ListDataset(dataset_list[train_size:train_size+valid_size])
+    test_dataset = ListDataset(dataset_list[train_size+valid_size:])
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=shuffle)
