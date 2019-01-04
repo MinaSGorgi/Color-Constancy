@@ -54,8 +54,5 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--labels", required=True, help="path to labels file")
     args = vars(parser.parse_args())
 
-    # load the image from disk
+    # load the features from disk
     train_loader, valid_loader, test_loader = construct_loaders(args["features"], args["labels"])
-
-
-
