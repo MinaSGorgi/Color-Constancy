@@ -112,9 +112,6 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
             # forward pass: compute predicted outputs by passing inputs to the model
             output = model(features)
 
-            if math.isnan(output[0,0]):
-                print("something is wrong")
-
             # calculate the batch loss
             loss = criterion(output, labels)
             # backward pass: compute gradient of the loss with respect to model parameters
@@ -177,7 +174,7 @@ def angular_error(output, label):
         3.141592653589793
     """
     rad_angle = torch.acos(torch.sum(output.float() * label.float(), dim=1))
-    return rad_angle
+    return rad_angle * 180 / np.pi
 
 
 if __name__ == "__main__":
