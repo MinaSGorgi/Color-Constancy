@@ -68,14 +68,28 @@ def get_lr(optimizer):
         return param_group['lr']
 
 
-def train(n_epochs, model, optimizer, scheduler, criterion):
-    train_on_gpu = torch.cuda.is_available()
+def get_device(use_gpu=True):
+    """
+    TODO: add documentation here
+    """
+    if not use_gpu:
+        print('Usage of gpu is not allowed! Using cpu instead ...')
+        device = torch.device('cpu')
+    elif not torch.cuda.is_available():
+        print('No support for CUDA available! Using cpu instead ...')
+        device = torch.device('cpu')
+    else:
+        print('Support for CUDA available! Using gpu ...')
+        device = torch.device('cuda')
 
-    if train_on_gpu:
-        model.cuda()
+    return device
+
+
+def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
+    device = get_device(use_gpu)
+    model.to(device)
 
     valid_loss_min = np.Inf  # track change in validation loss
-
     train_error = []
     valid_error = []
 
@@ -89,23 +103,22 @@ def train(n_epochs, model, optimizer, scheduler, criterion):
         # train the model #
         ###################
         model.train()
-        for feature_list, label in train_loader:
-            feature_list = feature_list.float()
+        for features, labels in train_loader:
+            features = features.float()
             # move tensors to GPU if CUDA is available
-            if train_on_gpu:
-                feature_list, label = feature_list.cuda(), label.cuda()
+            features, labels = features.to(device), labels.to(device)
             # clear the gradients of all optimized variables
             optimizer.zero_grad()
             # forward pass: compute predicted outputs by passing inputs to the model
-            output = model(feature_list)
+            output = model(features)
 
             if math.isnan(output[0,0]):
                 print("something is wrong")
 
             # calculate the batch loss
-            loss = criterion(output, label)
+            loss = criterion(output, labels)
             # backward pass: compute gradient of the loss with respect to model parameters
-            loss.backward(torch.Tensor(np.ones(label.shape[0])))
+            loss.backward(torch.Tensor(np.ones(labels.shape[0])))
             # perform a single optimization step (parameter update)
             optimizer.step()
             # update training loss
@@ -115,15 +128,14 @@ def train(n_epochs, model, optimizer, scheduler, criterion):
         # validate the model #
         ######################
         model.eval()
-        for feature_list, label in valid_loader:
-            feature_list = feature_list.float()
+        for features, labels in valid_loader:
+            features = features.float()
             # move tensors to GPU if CUDA is available
-            if train_on_gpu:
-                feature_list, label = feature_list.cuda(), label.cuda()
+            features, labels = features.to(device), labels.to(device)
             # forward pass: compute predicted outputs by passing inputs to the model
-            output = model(feature_list)
+            output = model(features)
             # calculate the batch loss
-            loss = criterion(output, label)
+            loss = criterion(output, labels)
             # update average validation loss
             valid_loss += loss.sum().item()
 
