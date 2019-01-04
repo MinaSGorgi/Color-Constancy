@@ -1,8 +1,11 @@
 import argparse
 import math
+
 import numpy as np
 import scipy.io as io
+
 import torch
+from torch.autograd import Variable
 from torch.utils.data import DataLoader, Dataset
 from torch import nn
 from torch import optim
@@ -104,9 +107,8 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
         ###################
         model.train()
         for features, labels in train_loader:
-            features = features.float()
             # move tensors to GPU if CUDA is available
-            features, labels = features.to(device), labels.to(device)
+            features, labels = features.to(device).float(), labels.to(device).float()
             # clear the gradients of all optimized variables
             optimizer.zero_grad()
             # forward pass: compute predicted outputs by passing inputs to the model
@@ -115,7 +117,7 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
             # calculate the batch loss
             loss = criterion(output, labels)
             # backward pass: compute gradient of the loss with respect to model parameters
-            loss.backward(torch.Tensor(np.ones(labels.shape[0])))
+            loss.backward()
             # perform a single optimization step (parameter update)
             optimizer.step()
             # update training loss
@@ -126,9 +128,8 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
         ######################
         model.eval()
         for features, labels in valid_loader:
-            features = features.float()
             # move tensors to GPU if CUDA is available
-            features, labels = features.to(device), labels.to(device)
+            features, labels = features.to(device).float(), labels.to(device).float()
             # forward pass: compute predicted outputs by passing inputs to the model
             output = model(features)
             # calculate the batch loss
@@ -163,18 +164,9 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
 
 
 def angular_error(output, label):
-    """
-        Returns the angle in radians between vectors 'v1' and 'v2'::
-
-        >>> angle_between((1, 0, 0), (0, 1, 0))
-        1.5707963267948966
-        >>> angle_between((1, 0, 0), (1, 0, 0))
-        0.0
-        >>> angle_between((1, 0, 0), (-1, 0, 0))
-        3.141592653589793
-    """
-    rad_angle = torch.acos(torch.sum(output.float() * label.float(), dim=1))
-    return rad_angle * 180 / np.pi
+    output_v = Variable(output, requires_grad=True)
+    label_v = Variable(label, requires_grad=True)
+    return (torch.acos(torch.sum(output_v * label_v, dim=1)) * 180 / np.pi).mean()
 
 
 if __name__ == "__main__":
