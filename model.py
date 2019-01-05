@@ -196,7 +196,7 @@ class AngularLoss(torch.nn.Module):
     def forward(self, output, label):
         output_v = Variable(output, requires_grad=True)
         label_v = Variable(label, requires_grad=True)
-        return torch.mean(torch.atan((torch.norm(torch.cross(output, label), dim=1)) / (torch.sum(output * label, dim=1))) * 180 / np.pi)
+        return torch.mean(torch.atan2((torch.norm(torch.cross(output, label), dim=1)), (torch.sum(output * label, dim=1))) * 180 / np.pi)
 
 
 if __name__ == "__main__":
