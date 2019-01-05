@@ -10,6 +10,7 @@ torch = {file = "https://download.pytorch.org/whl/cpu/torch-1.0.0-cp37-cp37m-win
 numpy = "*"
 matplotlib = "*"
 scipy = "*"
+scikit-image = "*"
 
 [requires]
 python_version = "3.7"
