@@ -1,6 +1,4 @@
 import argparse
-import math
-
 import numpy as np
 import scipy.io as io
 
@@ -23,7 +21,7 @@ class ListDataset(Dataset):
         return self.data_list[index]
 
 
-def construct_loaders(features_path, labels_path, batch_size=2, shuffle=True, ratios=[0.8, 0.1]):
+def construct_loaders(features_path, labels_path, batch_size=64, shuffle=True, ratios=[0.8, 0.1]):
     features = np.load(features_path)[()]
     labels = io.loadmat(labels_path)['real_rgb']
     voters = list(features.keys())
@@ -44,7 +42,7 @@ def construct_loaders(features_path, labels_path, batch_size=2, shuffle=True, ra
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=shuffle)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=shuffle)
 
     return train_loader, valid_loader, test_loader
 
@@ -115,7 +113,6 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
             optimizer.zero_grad()
             # forward pass: compute predicted outputs by passing inputs to the model
             output = model(features)
-
             # calculate the batch loss
             loss = criterion(output, labels)
             # backward pass: compute gradient of the loss with respect to model parameters
@@ -169,22 +166,37 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
     loss_list = np.array(loss_list)
     print("The loss mean {:.6f} and var {:.6f}".format(loss_list.mean(), loss_list.var()))
 
+    return model
+
+
+def sanity_check(model, test_loader, use_gpu=True):
+    device = get_device(use_gpu)
+    model.to(device)
+    model.eval()
+
+    for features, labels in test_loader:
+        # move tensors to GPU if CUDA is available
+        features, labels = features.to(device).float(), labels.to(device).float()
+        # forward pass: compute predicted outputs by passing inputs to the model
+        output = model(features)
+        original_loss = [angular_error(features.data[0, index * 3:index * 3 + 3], labels).data[0] for index in range(len(features[0])//3)]
+        print("before: " + str(original_loss), "\tafter: " + str(output))
+
 
 def angular_error(output, label):
     output_v = Variable(output, requires_grad=True)
     label_v = Variable(label, requires_grad=True)
-    return torch.acos(torch.sum(output_v * label_v, dim=1)) * 180 / np.pi
+    return torch.acos(torch.sum(output_v * label_v, dim=1))
 
 
-class CustomLoss(torch.nn.Module):
-
+class AngularLoss(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
     def forward(self, output, label):
         output_v = Variable(output, requires_grad=True)
         label_v = Variable(label, requires_grad=True)
-        return torch.sum(torch.atan((torch.norm(torch.cross(output, label), dim=1)) / (torch.sum(output * label, dim=1)))) * 180 / np.pi
+        return torch.mean(torch.atan((torch.norm(torch.cross(output, label), dim=1)) / (torch.sum(output * label, dim=1))) * 180 / np.pi)
 
 
 if __name__ == "__main__":
@@ -205,9 +217,11 @@ if __name__ == "__main__":
 
     # load the features from disk
     train_loader, valid_loader, test_loader = construct_loaders(args["features"], args["labels"], batch_size)
-    criterion = CustomLoss()
+    criterion = AngularLoss()
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
-    train(n_epochs, model, optimizer, scheduler, criterion)
+    model = train(n_epochs, model, optimizer, scheduler, criterion)
+
+    sanity_check(model, test_loader)
 
