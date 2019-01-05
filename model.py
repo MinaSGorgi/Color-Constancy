@@ -89,6 +89,8 @@ def get_device(use_gpu=True):
 
 
 def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
+    loss_list = []
+
     device = get_device(use_gpu)
     model.to(device)
 
@@ -121,7 +123,8 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
             # perform a single optimization step (parameter update)
             optimizer.step()
             # update training loss
-            train_loss += loss.sum().item()
+            train_loss += loss.data.numpy().sum()
+            loss_list.append(loss.data.numpy().sum())
 
         ######################
         # validate the model #
@@ -135,7 +138,7 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
             # calculate the batch loss
             loss = criterion(output, labels)
             # update average validation loss
-            valid_loss += loss.sum().item()
+            valid_loss += loss.data.numpy().sum()
 
         scheduler.step()
         print("learning rate = ", get_lr(optimizer))
@@ -161,12 +164,27 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
             torch.save(model.state_dict(), file_name)
 
             valid_loss_min = valid_loss
+    for param in model.parameters():
+        print(param)
+    loss_list = np.array(loss_list)
+    print("The loss mean {:.6f} and var {:.6f}".format(loss_list.mean(), loss_list.var()))
 
 
 def angular_error(output, label):
     output_v = Variable(output, requires_grad=True)
     label_v = Variable(label, requires_grad=True)
-    return (torch.acos(torch.sum(output_v * label_v, dim=1)) * 180 / np.pi).mean()
+    return torch.acos(torch.sum(output_v * label_v, dim=1)) * 180 / np.pi
+
+
+class CustomLoss(torch.nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, output, label):
+        output_v = Variable(output, requires_grad=True)
+        label_v = Variable(label, requires_grad=True)
+        return torch.sum(torch.atan((torch.norm(torch.cross(output, label), dim=1)) / (torch.sum(output * label, dim=1)))) * 180 / np.pi
 
 
 if __name__ == "__main__":
@@ -176,17 +194,18 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
     n_epochs = 10
+    batch_size = 10
 
     lr = 1
     momentum = 0.1
-    step_size = 3
+    step_size = 2
     gamma = 0.5
 
     model = ColorConstancyModel([(9, 16), (16, 3)])
 
     # load the features from disk
-    train_loader, valid_loader, test_loader = construct_loaders(args["features"], args["labels"])
-    criterion = angular_error
+    train_loader, valid_loader, test_loader = construct_loaders(args["features"], args["labels"], batch_size)
+    criterion = CustomLoss()
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
