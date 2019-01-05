@@ -1,8 +1,11 @@
 import argparse
 import math
+
 import numpy as np
 import scipy.io as io
+
 import torch
+from torch.autograd import Variable
 from torch.utils.data import DataLoader, Dataset
 from torch import nn
 from torch import optim
@@ -27,23 +30,17 @@ def construct_loaders(features_path, labels_path, batch_size=2, shuffle=True, ra
     size = len(features[voters[0]])
 
     features_list = np.zeros((size, len(voters) * 3), dtype=np.float)
-    for i in range(size):
-        features_list[i, :3] = features[voters[0]][i]
-        features_list[i, 3:6] = features[voters[1]][i]
-        features_list[i, 6:9] = features[voters[2]][i]
+    for fi in range(size):
+        for vi in range(len(voters)):
+            features_list[fi, vi * 3:vi * 3 + 3] = features[voters[vi]][fi]
+    dataset_list = list(zip(features_list, labels))
 
     train_size = int(ratios[0] * len(features_list))
     valid_size = int(ratios[1] * len(features_list))
-    test_size = int((1 - ratios[1] - ratios[0]) * len(features_list))
-    train_end = train_size
-    valid_end = valid_size + train_end
-    test_end = valid_end + test_size
 
-    features_list = list(zip(features_list, labels))
-
-    train_dataset = ListDataset(features_list[:train_end])
-    valid_dataset = ListDataset(features_list[train_end:valid_end])
-    test_dataset = ListDataset(features_list[test_end:])
+    train_dataset = ListDataset(dataset_list[:train_size])
+    valid_dataset = ListDataset(dataset_list[train_size:train_size+valid_size])
+    test_dataset = ListDataset(dataset_list[train_size+valid_size:])
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=shuffle)
@@ -74,14 +71,28 @@ def get_lr(optimizer):
         return param_group['lr']
 
 
-def train(n_epochs, model, optimizer, scheduler, criterion):
-    train_on_gpu = torch.cuda.is_available()
+def get_device(use_gpu=True):
+    """
+    TODO: add documentation here
+    """
+    if not use_gpu:
+        print('Usage of gpu is not allowed! Using cpu instead ...')
+        device = torch.device('cpu')
+    elif not torch.cuda.is_available():
+        print('No support for CUDA available! Using cpu instead ...')
+        device = torch.device('cpu')
+    else:
+        print('Support for CUDA available! Using gpu ...')
+        device = torch.device('cuda')
 
-    if train_on_gpu:
-        model.cuda()
+    return device
+
+
+def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
+    device = get_device(use_gpu)
+    model.to(device)
 
     valid_loss_min = np.Inf  # track change in validation loss
-
     train_error = []
     valid_error = []
 
@@ -95,23 +106,18 @@ def train(n_epochs, model, optimizer, scheduler, criterion):
         # train the model #
         ###################
         model.train()
-        for feature_list, label in train_loader:
-            feature_list = feature_list.float()
+        for features, labels in train_loader:
             # move tensors to GPU if CUDA is available
-            if train_on_gpu:
-                feature_list, label = feature_list.cuda(), label.cuda()
+            features, labels = features.to(device).float(), labels.to(device).float()
             # clear the gradients of all optimized variables
             optimizer.zero_grad()
             # forward pass: compute predicted outputs by passing inputs to the model
-            output = model(feature_list)
-
-            if math.isnan(output[0,0]):
-                print("something is wrong")
+            output = model(features)
 
             # calculate the batch loss
-            loss = criterion(output, label)
+            loss = criterion(output, labels)
             # backward pass: compute gradient of the loss with respect to model parameters
-            loss.backward(torch.Tensor(np.ones(label.shape[0])))
+            loss.backward()
             # perform a single optimization step (parameter update)
             optimizer.step()
             # update training loss
@@ -121,15 +127,13 @@ def train(n_epochs, model, optimizer, scheduler, criterion):
         # validate the model #
         ######################
         model.eval()
-        for feature_list, label in valid_loader:
-            feature_list = feature_list.float()
+        for features, labels in valid_loader:
             # move tensors to GPU if CUDA is available
-            if train_on_gpu:
-                feature_list, label = feature_list.cuda(), label.cuda()
+            features, labels = features.to(device).float(), labels.to(device).float()
             # forward pass: compute predicted outputs by passing inputs to the model
-            output = model(feature_list)
+            output = model(features)
             # calculate the batch loss
-            loss = criterion(output, label)
+            loss = criterion(output, labels)
             # update average validation loss
             valid_loss += loss.sum().item()
 
@@ -160,18 +164,9 @@ def train(n_epochs, model, optimizer, scheduler, criterion):
 
 
 def angular_error(output, label):
-    """
-        Returns the angle in radians between vectors 'v1' and 'v2'::
-
-        >>> angle_between((1, 0, 0), (0, 1, 0))
-        1.5707963267948966
-        >>> angle_between((1, 0, 0), (1, 0, 0))
-        0.0
-        >>> angle_between((1, 0, 0), (-1, 0, 0))
-        3.141592653589793
-    """
-    rad_angle = torch.acos(torch.sum(output.float() * label.float(), dim=1))
-    return rad_angle
+    output_v = Variable(output, requires_grad=True)
+    label_v = Variable(label, requires_grad=True)
+    return (torch.acos(torch.sum(output_v * label_v, dim=1)) * 180 / np.pi).mean()
 
 
 if __name__ == "__main__":
