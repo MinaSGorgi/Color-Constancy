@@ -233,9 +233,6 @@ def predict(model, image):
     som = np.sqrt(np.sum(np.power(prediction, 2)))
     prediction = np.divide(prediction, som)
 
-    print(features)
-    print(prediction)
-
     return prediction
 
 
