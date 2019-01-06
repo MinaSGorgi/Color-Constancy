@@ -32,13 +32,13 @@ Since as stated the project in its very early stages, it's currently dataset ori
 $ python demo.py
 ```
 
-![assets/tungsten.png](assets/tungsten.png "Original")
+![assets/tungsten.png](assets/tungsten.png "Original under tungsten light")
 ![assets/tungsten.png](assets/tGW.png "GW")
 ![assets/tungsten.png](assets/tMAX.png "MAX-RGB")
 ![assets/tungsten.png](assets/tGE.png "GE")
 ![assets/tungsten.png](assets/tCNN.png "CNN")
 
-![assets/tungsten.png](assets/bluesky.png "Original")
+![assets/tungsten.png](assets/bluesky.png "Original under bluesky light")
 ![assets/tungsten.png](assets/bGW.png "GW")
 ![assets/tungsten.png](assets/bMAX.png "MAX-RGB")
 ![assets/tungsten.png](assets/bGE.png "GE")
