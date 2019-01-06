@@ -3,6 +3,7 @@ import voters
 
 import argparse
 import numpy as np
+import os
 import scipy.io as scio
 
 import torch
@@ -238,7 +239,7 @@ def predict(model, image):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--features", required=True, help="path to features file")
+    parser.add_argument("-f", "--features", required=True, help="path to features file", default=os.path.join("res", "features.npy"))
     parser.add_argument("-l", "--labels", required=True, help="path to labels file")
     parser.add_argument("-b", "--batch", help="batch size for loaders", default=10)
     parser.add_argument("-e", "--epochs", help="number of training epochs", default=10)
