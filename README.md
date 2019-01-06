@@ -74,6 +74,33 @@ To test installation run [demo.py](demo.py)
 $ python demo.py
 ```
 
+## Running
+
+For help run:
+
+```console
+$ python demo.py -h
+usage: demo.py [-h] [-i IMAGES [IMAGES ...]] [-d DICT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i IMAGES [IMAGES ...], --images IMAGES [IMAGES ...]
+                        paths to input images
+  -d DICT, --dict DICT  path to saved dictionary
+```
+
+Sample:
+
+```console
+$ python demo.py -i assets/tungsten.png assets/bluesky.png -d res/model.pth
+```
+
+Which is same if you run:
+
+```
+$ python demo.py
+```
+
 ## Authors
 
 * **Mina Sami** - [MinaSGorgy](https://github.com/MinaSGorgy)
