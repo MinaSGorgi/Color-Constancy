@@ -1,15 +1,21 @@
+import utils
+import voters
+
 import argparse
 import numpy as np
-import scipy.io as io
+import scipy.io as scio
 
 import torch
-from torch.autograd import Variable
-from torch.utils.data import DataLoader, Dataset
 from torch import nn
 from torch import optim
+from torch.autograd import Variable
+from torch.utils.data import DataLoader, Dataset
 
 
 class ListDataset(Dataset):
+    """
+    TODO: add documentation here
+    """
     def __init__(self, data_list):
         super().__init__()
         self.data_list = data_list
@@ -21,11 +27,40 @@ class ListDataset(Dataset):
         return self.data_list[index]
 
 
+class AngularLoss(torch.nn.Module):
+    """
+    TODO: add documentation here
+    """
+    def forward(self, output, label):
+        return torch.mean(torch.atan2((torch.norm(torch.cross(output, label), dim=1)), (torch.sum(output * label, dim=1))) * 180 / np.pi)
+
+
+class ColorConstancyModel(nn.Module):
+    """
+    TODO: add documentation here
+    """
+    def __init__(self, network_arch, dropout=0.3):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        self.relu = nn.ReLU()
+        self.layers = nn.ModuleList()
+        for input_size, output_size in network_arch:
+            self.layers.append(nn.Linear(input_size, output_size))
+
+    def forward(self, x):
+        for i in range(len(self.layers) - 1):
+            x = self.dropout(self.relu(self.layers[i](x)))
+        return self.layers[-1](x)
+
+
 def construct_loaders(features_path, labels_path, batch_size=64, shuffle=True, ratios=[0.8, 0.1]):
+    """
+    TODO: add documentation here
+    """
     features = np.load(features_path)[()]
-    labels = io.loadmat(labels_path)['real_rgb']
+    labels = scio.loadmat(labels_path)['real_rgb']
     voters = list(features.keys())
-    size = len(features[voters[0]])
+    size = len(labels)
 
     features_list = np.zeros((size, len(voters) * 3), dtype=np.float)
     for fi in range(size):
@@ -47,24 +82,10 @@ def construct_loaders(features_path, labels_path, batch_size=64, shuffle=True, r
     return train_loader, valid_loader, test_loader
 
 
-class ColorConstancyModel(nn.Module):
-
-    def __init__(self, network_arch, dropout=0.3):
-        super().__init__()
-        self.dropout = nn.Dropout(dropout)
-        self.relu = nn.ReLU()
-        self.layers = nn.ModuleList()
-        for input_size, output_size in network_arch:
-            self.layers.append(nn.Linear(input_size, output_size))
-
-    def forward(self, x):
-        for i in range(len(self.layers) - 1):
-            x = self.dropout(self.relu(self.layers[i](x)))
-        x = self.layers[-1](x)
-        return x
-
-
 def get_lr(optimizer):
+    """
+    TODO: add documentation here
+    """
     for param_group in optimizer.param_groups:
         return param_group['lr']
 
@@ -87,14 +108,16 @@ def get_device(use_gpu=True):
 
 
 def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
-    loss_list = []
-
+    """
+    TODO: add documentation here
+    """
     device = get_device(use_gpu)
     model.to(device)
 
     valid_loss_min = np.Inf  # track change in validation loss
     train_error = []
     valid_error = []
+    loss_list = []
 
     for epoch in range(1, n_epochs + 1):
 
@@ -161,8 +184,7 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
             torch.save(model.state_dict(), file_name)
 
             valid_loss_min = valid_loss
-    for param in model.parameters():
-        print(param)
+
     loss_list = np.array(loss_list)
     print("The loss mean {:.6f} and var {:.6f}".format(loss_list.mean(), loss_list.var()))
 
@@ -170,58 +192,74 @@ def train(n_epochs, model, optimizer, scheduler, criterion, use_gpu=True):
 
 
 def sanity_check(model, test_loader, use_gpu=True):
+    """
+    TODO: add documentation here
+    """
     device = get_device(use_gpu)
     model.to(device)
     model.eval()
 
+    original_loss_list = []
+    final_loss_list = []
     for features, labels in test_loader:
         # move tensors to GPU if CUDA is available
         features, labels = features.to(device).float(), labels.to(device).float()
         # forward pass: compute predicted outputs by passing inputs to the model
         output = model(features)
-        original_loss = [angular_error(features.data[0, index * 3:index * 3 + 3], labels).data[0] for index in range(len(features[0])//3)]
-        print("before: " + str(original_loss), "\tafter: " + str(output))
+        original_loss = [utils.angular_error(features.data[0, index * 3:index * 3 + 3].detach().numpy(), np.transpose(labels.detach().numpy()))[0] for index in range(len(features[0])//3)]
+        
+        final_loss = utils.angular_error(output.detach().numpy(), np.transpose(labels.detach().numpy()))[0][0]
+
+        original_loss_list.append(original_loss[-1].item())
+        final_loss_list.append(final_loss)
+
+    print("Original:")
+    utils.print_stats(original_loss_list)
+    print("Final:")
+    utils.print_stats(final_loss_list)
 
 
-def angular_error(output, label):
-    output_v = Variable(output, requires_grad=True)
-    label_v = Variable(label, requires_grad=True)
-    return torch.acos(torch.sum(output_v * label_v, dim=1))
-
-
-class AngularLoss(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, output, label):
-        output_v = Variable(output, requires_grad=True)
-        label_v = Variable(label, requires_grad=True)
-        return torch.mean(torch.atan2((torch.norm(torch.cross(output, label), dim=1)), (torch.sum(output * label, dim=1))) * 180 / np.pi)
+def predict(model, image):
+    """
+    TODO: add documentation here
+    """
+    features = [0.]*9
+    features[:3] = voters.grey_edge(image, njet=0, mink_norm=1, sigma=0)
+    features[3:6] = voters.grey_edge(image, njet=0, mink_norm=-1, sigma=0)
+    features[6:] = voters.grey_edge(image, njet=1, mink_norm=5, sigma=2)
+    
+    model.eval()
+    prediction = model(torch.Tensor(features))
+    return prediction.numpy().tolist()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--features", required=True, help="path to features file")
     parser.add_argument("-l", "--labels", required=True, help="path to labels file")
+    parser.add_argument("-b", "--batch", help="batch size for loaders", default=10)
+    parser.add_argument("-e", "--epochs", help="number of training epochs", default=10)
+    parser.add_argument("-r", "--lr", help="initial learning rate", default=1)
+    parser.add_argument("-m", "--momentum", help="optimizer momentum", default=0.1)
+    parser.add_argument("-s", "--step", help="optimizer step size", default=2)
+    parser.add_argument("-g", "--gamma", help="optimizer gamma", default=0.9)
+    parser.add_argument("-d", "--dict", help="path to saved dictionary", default=None)
+    parser.add_argument("-gpu", action='store_true', help="allow using gpu", default=False)
     args = vars(parser.parse_args())
 
-    n_epochs = 10
-    batch_size = 10
-
-    lr = 1
-    momentum = 0.1
-    step_size = 2
-    gamma = 0.5
-
-    model = ColorConstancyModel([(9, 16), (16, 3)])
+    # setup model
+    model = ColorConstancyModel([(9, 27), (27, 3)])
+    if args["dict"] is not None:
+        model.load_state_dict(torch.load(args["dict"]))
 
     # load the features from disk
-    train_loader, valid_loader, test_loader = construct_loaders(args["features"], args["labels"], batch_size)
+    train_loader, valid_loader, test_loader = construct_loaders(args["features"], args["labels"], args["batch"])
+    #setup hyper parameters
     criterion = AngularLoss()
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+    optimizer = optim.SGD(model.parameters(), lr=args["lr"], momentum=args["momentum"])
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args["step"], gamma=args["gamma"])
 
-    model = train(n_epochs, model, optimizer, scheduler, criterion)
-
+    # train
+    model = train(args["epochs"], model, optimizer, scheduler, criterion, use_gpu=args["gpu"])
+    # error stats check
     sanity_check(model, test_loader)
-
