@@ -229,8 +229,14 @@ def predict(model, image):
     features[6:] = voters.grey_edge(image, njet=1, mink_norm=5, sigma=2)
     
     model.eval()
-    prediction = model(torch.Tensor(features))
-    return prediction.numpy().tolist()
+    prediction = model(torch.Tensor(features)).detach().numpy()
+    som = np.sqrt(np.sum(np.power(prediction, 2)))
+    prediction = np.divide(prediction, som)
+
+    print(features)
+    print(prediction)
+
+    return prediction
 
 
 if __name__ == "__main__":
