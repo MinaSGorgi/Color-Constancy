@@ -11,7 +11,7 @@ import torch
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--image", help="path to input image file", default="image.jpg")
+    parser.add_argument("-i", "--image", help="path to input image file", default="image.png")
     parser.add_argument("-d", "--dict", help="path to saved dictionary", default="model.pth")
     args = vars(parser.parse_args())
 
