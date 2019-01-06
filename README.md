@@ -23,12 +23,11 @@ Motivated by these voting methods, we developed a simple multi-level perceptron 
 
 We implemented 3 statistics-based methods which are GW, MAX-RGB and GE. We ran them on [SFU Grey-ball Set](http://www.cs.sfu.ca/~colour/data/gray_ball/index.html) and got 3 illuminations for each image, these illuminations were used later as features(input) for our mlp. We then used 80% of the dataset for training, 10% for validating and last 10% for testing. Results show a reduced error in terms of mean and median. Our [model](res/model.pth) is available for recreating these results although labels(real illuminations) must be obtained from given dataset link since we don't own the set and aren't allowed to distribute it.
 
-
 ## Showcase
 
 Since as stated the project in its very early stages, it's currently dataset oriented and preferred to be tested against mentioned dataset. However, we manage to provide some sample from outside of the dataset. These samples can be recreated via running [demo.py](demo.py):
 
-```
+```console
 $ python demo.py
 ```
 
@@ -48,7 +47,7 @@ $ python demo.py
 
 Clone repo:
 
-```
+```console
 $ git clone https://github.com/MinaSGorgy/Color-Constancy.git
 ```
 
@@ -57,24 +56,38 @@ $ git clone https://github.com/MinaSGorgy/Color-Constancy.git
 * [NumPy](http://www.numpy.org/)
 * [Matplotlib](https://matplotlib.org/)
 * [scikit-image](https://scikit-image.org/)
-* [SciPy ](https://www.scipy.org/)
+* [SciPy](https://www.scipy.org/)
 * [PyTorch](https://pytorch.org/)
 
 ### Installing
 
-TODO: explain
+Make sure you have [Anaconda](https://www.anaconda.com/download/#linux)
 
-```
-$ TODO: cmd
+Recreate the env:
+
+```console
+$ conda env create -f colorconstancy.yml
 ```
 
-To test installation run [demo.py](demo.py)
+Every time you want to run the project, first activate the env:
 
+```console
+$ conda activate cc
 ```
+
+To test installation, run [demo.py](demo.py):
+
+```console
 $ python demo.py
 ```
 
 ## Running
+
+First activate the env:
+
+```console
+$ conda activate cc
+```
 
 For help run:
 
@@ -97,7 +110,7 @@ $ python demo.py -i assets/tungsten.png assets/bluesky.png -d res/model.pth
 
 Which is same if you run:
 
-```
+```console
 $ python demo.py
 ```
 
@@ -113,5 +126,5 @@ This project is licensed under the GPL License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 * Ciurea, F. and Funt, B. "A Large Image Database for Color Constancy
-Research," Proceedings of the Imaging Science and Technology Eleventh
-Color Imaging Conference, pp. 160-164, Scottsdale, Nov. 2003.
+  Research," Proceedings of the Imaging Science and Technology Eleventh
+  Color Imaging Conference, pp. 160-164, Scottsdale, Nov. 2003.
