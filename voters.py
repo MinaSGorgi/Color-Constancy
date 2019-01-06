@@ -76,7 +76,7 @@ def correct_image(image, illum):
 
     for channel in range(3):
         corrected_image[:, :, channel] /= correcting_illum[channel]
-    return corrected_image
+    return np.clip(corrected_image, 0., 1.)
 
 
 if __name__ == "__main__":
