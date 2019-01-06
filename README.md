@@ -17,11 +17,11 @@ $ git clone https://github.com/MinaSGorgy/Color-Constancy.git
 
 ### Prerequisites
 
-TODO: lib name
-
-```
-$ TODO: cmd
-```
+* [NumPy](http://www.numpy.org/)
+* [Matplotlib](https://matplotlib.org/)
+* [scikit-image](https://scikit-image.org/)
+* [SciPy ](https://www.scipy.org/)
+* [PyTorch](https://pytorch.org/)
 
 ### Installing
 
