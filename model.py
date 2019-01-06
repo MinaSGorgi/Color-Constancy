@@ -250,6 +250,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--step", help="optimizer step size", default=2)
     parser.add_argument("-g", "--gamma", help="optimizer gamma", default=0.9)
     parser.add_argument("-d", "--dict", help="path to saved dictionary", default=None)
+    parser.add_argument("-t", "--train", action='store_true', help="enable training model", default=False)
     parser.add_argument("-gpu", action='store_true', help="allow using gpu", default=False)
     args = vars(parser.parse_args())
 
@@ -266,6 +267,7 @@ if __name__ == "__main__":
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args["step"], gamma=args["gamma"])
 
     # train
-    model = train(args["epochs"], model, optimizer, scheduler, criterion, use_gpu=args["gpu"])
+    if args["train"]:
+        model = train(args["epochs"], model, optimizer, scheduler, criterion, use_gpu=args["gpu"])
     # error stats check
     sanity_check(model, test_loader)
